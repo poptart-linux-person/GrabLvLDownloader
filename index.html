@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grab Level Downloader — Save GRAB VR levels</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0b10;color:#f0f0f5;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+  .bg-glow{pointer-events:none;position:fixed;inset:0;opacity:.6;z-index:0;background:radial-gradient(60% 45% at 20% 15%,rgba(120,80,255,.25),transparent 60%),radial-gradient(50% 40% at 85% 90%,rgba(0,200,180,.2),transparent 60%)}
+  .bg-grid{pointer-events:none;position:fixed;inset:0;z-index:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse at center,black 40%,transparent 80%);-webkit-mask-image:radial-gradient(ellipse at center,black 40%,transparent 80%)}
+  .container{position:relative;z-index:1;max-width:800px;margin:0 auto;display:flex;flex-direction:column;min-height:100vh;padding:40px 24px}
+  header{display:flex;align-items:center;justify-content:space-between}
+  .logo-wrap{display:flex;align-items:center;gap:8px}
+  .logo-badge{display:grid;place-items:center;width:36px;height:36px;border-radius:8px;background:#00d1b2;color:#0a0b10;font-weight:900;font-size:18px}
+  .logo-text{font-size:13px;font-weight:500;letter-spacing:.12em;color:#aaaabb}
+  .browse-link{font-size:12px;color:#888899;text-decoration:none;transition:color .15s}
+  .browse-link:hover{color:#f0f0f5;text-decoration:underline}
+  h1{font-size:2.25rem;font-weight:900;line-height:1.1;letter-spacing:-.02em;margin-top:48px}
+  @media(min-width:768px){h1{font-size:3.5rem}}
+  .gradient-text{background:linear-gradient(to right,#00d1b2,#a855f7);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+  .subtitle{margin-top:16px;max-width:576px;font-size:1rem;color:#9999aa;line-height:1.6}
+  @media(min-width:768px){.subtitle{font-size:1.125rem}}
+  code{font-family:'SF Mono','Fira Code',monospace;background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px;font-size:.85em;color:#cccddd}
+  .form{margin-top:32px;display:flex;flex-direction:column;gap:12px}
+  .input{flex:1;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);padding:12px 16px;font-size:14px;color:#ffffff !important;outline:none;transition:border-color .15s;font-family:inherit;-webkit-text-fill-color:#ffffff !important}
+  .input::placeholder{color:#666677}
+  .input:focus{border-color:#00d1b2}
+  textarea.input{resize:vertical;min-height:120px;font-family:'SF Mono','Fira Code',monospace;font-size:13px;line-height:1.6}
+  .btn{border:none;border-radius:12px;background:#00d1b2;padding:12px 24px;font-size:14px;font-weight:600;color:#0a0b10;cursor:pointer;transition:filter .15s;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+  .btn:hover{filter:brightness(1.1)}
+  .btn:disabled{opacity:.5;cursor:wait;filter:none}
+  .btn-purple{background:#a855f7;color:#fff}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,.15);color:#e0e0ee}
+  .checkbox-row{display:flex;align-items:center;gap:8px;font-size:13px;color:#9999aa}
+  .error-box{margin-top:16px;border-radius:12px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.1);padding:12px 16px;font-size:14px;color:#fecaca}
+  .hint-box{margin-top:16px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);padding:12px 16px;font-size:13px;color:#9999aa}
+  .result-card{margin-top:24px;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);overflow:hidden}
+  .result-body{display:flex;flex-direction:column;gap:16px;padding:20px}
+  @media(min-width:640px){.result-body{flex-direction:row;align-items:center}}
+  .result-thumb{width:160px;height:96px;flex-shrink:0;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#000;object-fit:cover}
+  .result-info{flex:1;min-width:0}
+  .result-title{font-size:1.125rem;font-weight:600;color:#f0f0f5;word-break:break-word}
+  .result-meta{margin-top:4px;font-size:14px;color:#9999aa}
+  .tags{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+  .tag{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);border-radius:999px;padding:2px 8px;font-size:12px;color:#bbbccc}
+  .result-id{border-top:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.2);padding:8px 20px;font-family:'SF Mono',monospace;font-size:11px;color:#777788}
+  .sublevels-section{margin-top:16px}
+  .sublevels-label{font-size:12px;font-weight:600;letter-spacing:.08em;color:#a855f7;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .batch-results{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+  .batch-item{display:flex;align-items:center;gap:12px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);padding:12px 16px}
+  .bi-thumb{width:48px;height:28px;border-radius:4px;flex-shrink:0;border:1px solid rgba(255,255,255,.1);background:#000;object-fit:cover}
+  .bi-info{flex:1;min-width:0}
+  .bi-title{font-size:14px;font-weight:600;color:#f0f0f5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bi-meta{font-size:12px;color:#888899;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bi-dl-btn{border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;color:#e0e0ee;white-space:nowrap;transition:all .15s;flex-shrink:0;text-decoration:none;display:inline-flex;align-items:center}
+  .bi-dl-btn:hover{background:rgba(255,255,255,.1)}
+  .bi-error{color:#f87171;font-size:12px;flex-shrink:0}
+  .bi-pending{color:#777788;font-size:12px;flex-shrink:0}
+  .batch-summary{margin-top:16px;font-size:14px;color:#9999aa;padding:12px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05)}
+  .batch-summary a{color:#00d1b2;text-decoration:none;font-weight:600}
+  .steps{margin-top:64px;display:grid;gap:16px}
+  @media(min-width:640px){.steps{grid-template-columns:repeat(3,1fr)}}
+  .step{border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);padding:16px}
+  .step-num{font-size:12px;color:#777788}
+  .step-title{margin-top:4px;font-weight:600;color:#f0f0f5}
+  .step-desc{margin-top:4px;font-size:14px;color:#9999aa}
+  footer{margin-top:auto;padding-top:64px;font-size:12px;color:#555566}
+  .section-label{font-size:12px;font-weight:600;letter-spacing:.1em;color:#777788;margin-bottom:8px;text-transform:uppercase}
+  .spinner{display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.2);border-top-color:#00d1b2;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
+<div class="container">
+  <header>
+    <div class="logo-wrap"><div class="logo-badge">G</div><span class="logo-text">GRAB · LEVEL DOWNLOADER</span></div>
+    <a href="https://grabvr.quest/levels/" target="_blank" rel="noreferrer" class="browse-link">Browse levels ↗</a>
+  </header>
+
+  <h1>Download any <span class="gradient-text">GRAB VR</span> level.</h1>
+  <p class="subtitle">Paste a link like <code>grabvr.quest/levels/viewer/?level=…</code> and grab the raw <code>.level</code> file in one click. Sublevels are separately-published levels referenced from inside the map's own file data, so finding them means opening the downloaded <code>.level</code> file itself and scanning it for those references — a bit slower, but it catches sublevels the lookup page alone wouldn't show.</p>
+
+  <form class="form" id="singleForm">
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <input type="text" name="level" id="singleInput" class="input" placeholder="https://grabvr.quest/levels/viewer/?level=…" autofocus style="flex:1;min-width:200px">
+      <button type="submit" class="btn" id="singleBtn">Find level</button>
+    </div>
+    <label class="checkbox-row"><input type="checkbox" id="scanSublevels" checked> Scan level file for linked sublevels (slower)</label>
+  </form>
+
+  <div id="singleError"></div>
+  <div id="singleResult"></div>
+  <div id="sublevelsOut"></div>
+
+  <div style="margin-top:48px">
+    <div class="section-label">Batch download</div>
+    <p class="subtitle" style="margin-top:0">Paste multiple level links or IDs (one per line, up to 50). Detected sublevels are added to the batch automatically and deduplicated.</p>
+    <form class="form" id="batchForm">
+      <textarea name="levels" id="batchInput" class="input" placeholder="https://grabvr.quest/levels/viewer/?level=29xxxx:170000
+29xxxx:170001
+29yyyy:170002" rows="6"></textarea>
+      <div style="display:flex;gap:12px;margin-top:4px;flex-wrap:wrap;align-items:center">
+        <button type="submit" class="btn" id="batchBtn">Look up all levels</button>
+        <label class="checkbox-row"><input type="checkbox" id="batchScanSublevels" checked> Scan level files for linked sublevels (slower)</label>
+      </div>
+    </form>
+    <div id="batchError"></div>
+    <div id="batchOut"></div>
+  </div>
+
+  <section class="steps">
+    <div class="step"><div class="step-num">01</div><div class="step-title">Paste a link</div><div class="step-desc">Full viewer URL or bare ID (userId:levelId) both work.</div></div>
+    <div class="step"><div class="step-num">02</div><div class="step-title">One click</div><div class="step-desc">We pull the latest iteration straight from the GRAB API, then scan it for any linked sublevels.</div></div>
+    <div class="step"><div class="step-num">03</div><div class="step-title">Raw .level files</div><div class="step-desc">Same binary the game downloads — the main level and every detected sublevel, ready for offline use.</div></div>
+  </section>
+
+  <footer>Not affiliated with GRAB or SlinDev. Level data © their respective creators.</footer>
+</div>
+
+<script>
+(function () {
+  const LOOKUP_BASE = "https://vesper-584e74fe.base44.app/functions/grabDownloaderPage";
+  const DOWNLOAD_BASE = "https://vesper-584e74fe.base44.app/functions/grabLevelDownloader";
+  // Matches the userId:timestamp shape used for GRAB level identifiers, e.g. 2frvcv7lg1y0m9lxbwd7f:1786234424
+  const ID_RE = /\b[a-z0-9]{15,30}:\d{8,14}\b/gi;
+
+  function extractId(raw) {
+    raw = raw.trim();
+    if (!raw) return null;
+    try {
+      const u = new URL(raw, location.href);
+      const param = u.searchParams.get("level");
+      if (param) return decodeParam(param);
+    } catch (e) { /* not a URL, fall through */ }
+    // bare id, or id embedded after "level=" without being a full valid URL
+    const m = raw.match(/level=([^&]+)/i);
+    if (m) return decodeParam(m[1]);
+    return raw;
+  }
+
+  function decodeParam(v) {
+    try { return decodeURIComponent(v); } catch (e) { return v; }
+  }
+
+  function lookupUrl(idOrRaw) {
+    return LOOKUP_BASE + "?level=" + encodeURIComponent(idOrRaw);
+  }
+
+  function downloadUrl(idOrRaw, filename) {
+    return DOWNLOAD_BASE + "?level=" + encodeURIComponent(lookupUrl(idOrRaw)) + "&mode=download";
+  }
+
+  // Fetches a lookup page and pulls out title/author/thumb/download-link/id
+  // plus every other id:timestamp pattern found anywhere in the raw response.
+  async function fetchLevelInfo(idOrRaw, opts) {
+    opts = opts || {};
+    const url = lookupUrl(idOrRaw);
+    const res = await fetch(url, { credentials: "same-origin" });
+    if (!res.ok) throw new Error("Lookup failed (" + res.status + ")");
+    const text = await res.text();
+
+    let info = null;
+    try {
+      const json = JSON.parse(text);
+      info = normalizeJson(json);
+    } catch (e) {
+      info = parseHtmlResult(text);
+    }
+
+    const allIds = new Set((text.match(ID_RE) || []).map(s => s.toLowerCase()));
+    if (info && info.id) allIds.delete(info.id.toLowerCase());
+
+    // Sublevels here are separate published levels referenced from *inside*
+    // the level's own file data (e.g. portal/streaming triggers), not
+    // necessarily surfaced by the metadata lookup above. To find those we
+    // have to actually fetch the .level binary and scan its raw bytes for
+    // embedded id:timestamp references.
+    if (opts.scanBinary) {
+      try {
+        const bin = await fetchAndScanBinary(idOrRaw);
+        bin.ids.forEach(id => { if (!info || id !== (info.id || "").toLowerCase()) allIds.add(id); });
+        if (info) info.downloadHref = bin.blobUrl;
+        else info = { id: idOrRaw, title: idOrRaw, author: "", meta: "", thumb: "", downloadHref: bin.blobUrl, sub: [] };
+      } catch (e) {
+        // Binary fetch failing shouldn't block showing the metadata result —
+        // just fall back to a direct download link.
+      }
+    }
+
+    return { info, rawIds: allIds, url };
+  }
+
+  // Fetches the actual .level binary, scans its decoded bytes for embedded
+  // level-id references, and returns a blob URL so the download link works
+  // reliably (and its filename attribute is honored) regardless of origin.
+  async function fetchAndScanBinary(idOrRaw) {
+    const res = await fetch(downloadUrl(idOrRaw), { credentials: "same-origin" });
+    if (!res.ok) throw new Error("Level file fetch failed (" + res.status + ")");
+    const buf = await res.arrayBuffer();
+    const blobUrl = URL.createObjectURL(new Blob([buf]));
+    // ASCII id strings survive a lossy utf-8 decode of otherwise-binary data,
+    // so this still finds them even though most of the file isn't text.
+    const text = new TextDecoder("utf-8", { fatal: false }).decode(buf);
+    const ids = new Set((text.match(ID_RE) || []).map(s => s.toLowerCase()));
+    return { blobUrl, ids };
+  }
+
+  function normalizeJson(json) {
+    const rec = json.level || json.result || json;
+    if (!rec) return null;
+    return {
+      id: rec.id || rec.levelId || null,
+      title: rec.title || rec.name || "Untitled level",
+      author: rec.author || rec.creator || "",
+      meta: [rec.iteration ? "iteration " + rec.iteration : null, rec.complexity ? "complexity " + rec.complexity : null].filter(Boolean).join(" · "),
+      thumb: rec.thumb || rec.thumbnail || "",
+      downloadHref: null, // built from id below if missing
+      sub: rec.subLevels || rec.linkedLevels || rec.relatedLevels || []
+    };
+  }
+
+  function parseHtmlResult(html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const card = doc.querySelector(".result-card");
+    if (!card) return null;
+    const title = card.querySelector(".result-title");
+    const meta = card.querySelector(".result-meta");
+    const thumb = card.querySelector(".result-thumb");
+    const idEl = card.querySelector(".result-id");
+    const dl = card.querySelector(".btn-purple");
+    return {
+      id: idEl ? idEl.textContent.trim() : null,
+      title: title ? title.textContent.trim() : "Untitled level",
+      author: "",
+      meta: meta ? meta.textContent.trim() : "",
+      thumb: thumb ? thumb.getAttribute("src") : "",
+      downloadHref: dl ? dl.getAttribute("href") : null,
+      sub: []
+    };
+  }
+
+  function renderResultCard(info, container) {
+    if (!info) {
+      container.innerHTML = '<div class="error-box">Couldn\'t find a level at that link.</div>';
+      return;
+    }
+    const dlHref = info.downloadHref || downloadUrl(info.id);
+    container.innerHTML =
+      '<div class="result-card"><div class="result-body">' +
+        (info.thumb ? '<img class="result-thumb" src="' + escapeAttr(info.thumb) + '" alt="">' : '<div class="result-thumb"></div>') +
+        '<div class="result-info">' +
+          '<h2 class="result-title">' + escapeHtml(info.title) + '</h2>' +
+          '<p class="result-meta">' + escapeHtml([info.author && ("by " + info.author), info.meta].filter(Boolean).join(" · ")) + '</p>' +
+        '</div>' +
+        '<a class="btn btn-purple" href="' + escapeAttr(dlHref) + '" download="' + escapeAttr(safeFilename(info.title)) + '.level">↓ Download .level</a>' +
+      '</div>' +
+      (info.id ? '<div class="result-id">' + escapeHtml(info.id) + '</div>' : '') +
+    '</div>';
+  }
+
+  function batchItemHtml(info, idOrRaw, state) {
+    const dlHref = info ? (info.downloadHref || downloadUrl(info.id || idOrRaw)) : null;
+    return '<div class="batch-item">' +
+      (info && info.thumb ? '<img class="bi-thumb" src="' + escapeAttr(info.thumb) + '" alt="">' : '<div class="bi-thumb"></div>') +
+      '<div class="bi-info">' +
+        '<div class="bi-title">' + escapeHtml(info ? info.title : idOrRaw) + '</div>' +
+        '<div class="bi-meta">' + escapeHtml(info ? [info.author && ("by " + info.author), info.meta].filter(Boolean).join(" · ") : idOrRaw) + '</div>' +
+      '</div>' +
+      (state === "pending" ? '<span class="bi-pending"><span class="spinner"></span></span>' :
+       state === "error" ? '<span class="bi-error">not found</span>' :
+       '<a class="bi-dl-btn" href="' + escapeAttr(dlHref) + '" download="' + escapeAttr(safeFilename(info.title)) + '.level">↓ .level</a>') +
+    '</div>';
+  }
+
+  function safeFilename(s) {
+    return (s || "level").replace(/[^a-z0-9_\- ]/gi, "").trim().replace(/\s+/g, "_") || "level";
+  }
+  function escapeHtml(s) { return (s || "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  // ---- single lookup ----
+  const singleForm = document.getElementById("singleForm");
+  const singleInput = document.getElementById("singleInput");
+  const singleBtn = document.getElementById("singleBtn");
+  const singleError = document.getElementById("singleError");
+  const singleResult = document.getElementById("singleResult");
+  const sublevelsOut = document.getElementById("sublevelsOut");
+  const scanSublevels = document.getElementById("scanSublevels");
+
+  singleForm.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    singleError.innerHTML = "";
+    singleResult.innerHTML = "";
+    sublevelsOut.innerHTML = "";
+    const raw = singleInput.value;
+    const id = extractId(raw);
+    if (!id) {
+      singleError.innerHTML = '<div class="error-box">Enter a level link or ID first.</div>';
+      return;
+    }
+    singleBtn.disabled = true;
+    singleResult.innerHTML = '<div class="hint-box"><span class="spinner"></span> Looking up level…</div>';
+    try {
+      const { info, rawIds } = await fetchLevelInfo(id, { scanBinary: scanSublevels.checked });
+      renderResultCard(info, singleResult);
+
+      if (scanSublevels.checked) {
+        const declaredSub = (info && info.sub) || [];
+        const candidateIds = new Set([...declaredSub, ...rawIds]);
+        if (candidateIds.size) {
+          sublevelsOut.innerHTML =
+            '<div class="sublevels-section"><div class="sublevels-label">↳ ' + candidateIds.size + ' linked sublevel(s) detected</div>' +
+            '<div class="batch-results" id="subResults"></div></div>';
+          const subResults = document.getElementById("subResults");
+          await resolveList([...candidateIds], subResults);
+        }
+      }
+    } catch (err) {
+      singleResult.innerHTML = "";
+      singleError.innerHTML = '<div class="error-box">' + escapeHtml(err.message || "Something went wrong.") + '</div>';
+    } finally {
+      singleBtn.disabled = false;
+    }
+  });
+
+  async function resolveList(ids, outEl) {
+    // render placeholders first
+    outEl.innerHTML = ids.map(id => batchItemHtml(null, id, "pending")).join("");
+    const children = outEl.children;
+    for (let i = 0; i < ids.length; i++) {
+      try {
+        const { info } = await fetchLevelInfo(ids[i]);
+        children[i].outerHTML = batchItemHtml(info, ids[i], "ok");
+      } catch (e) {
+        children[i].outerHTML = batchItemHtml(null, ids[i], "error");
+      }
+    }
+  }
+
+  // ---- batch lookup ----
+  const batchForm = document.getElementById("batchForm");
+  const batchInput = document.getElementById("batchInput");
+  const batchBtn = document.getElementById("batchBtn");
+  const batchError = document.getElementById("batchError");
+  const batchOut = document.getElementById("batchOut");
+  const batchScanSublevels = document.getElementById("batchScanSublevels");
+
+  batchForm.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    batchError.innerHTML = "";
+    batchOut.innerHTML = "";
+    const lines = batchInput.value.split("\n").map(l => l.trim()).filter(Boolean).slice(0, 50);
+    if (!lines.length) {
+      batchError.innerHTML = '<div class="error-box">Paste at least one level link or ID.</div>';
+      return;
+    }
+    batchBtn.disabled = true;
+    const seen = new Set();
+    const ordered = [];
+    for (const line of lines) {
+      const id = extractId(line);
+      if (id && !seen.has(id.toLowerCase())) { seen.add(id.toLowerCase()); ordered.push(id); }
+    }
+
+    batchOut.innerHTML = '<div class="batch-results" id="batchResults"></div><div class="batch-summary" id="batchSummary">Looking up ' + ordered.length + ' level(s)…</div>';
+    const batchResults = document.getElementById("batchResults");
+    batchResults.innerHTML = ordered.map(id => batchItemHtml(null, id, "pending")).join("");
+
+    let okCount = 0, errCount = 0;
+    const extraSubIds = new Set();
+
+    for (let i = 0; i < ordered.length; i++) {
+      try {
+        const { info, rawIds } = await fetchLevelInfo(ordered[i], { scanBinary: batchScanSublevels.checked });
+        batchResults.children[i].outerHTML = batchItemHtml(info, ordered[i], "ok");
+        okCount++;
+        if (batchScanSublevels.checked) {
+          const declaredSub = (info && info.sub) || [];
+          [...declaredSub, ...rawIds].forEach(sid => {
+            if (!seen.has(sid.toLowerCase())) extraSubIds.add(sid);
+          });
+        }
+      } catch (err) {
+        batchResults.children[i].outerHTML = batchItemHtml(null, ordered[i], "error");
+        errCount++;
+      }
+    }
+
+    if (batchScanSublevels.checked && extraSubIds.size) {
+      const subIdsArr = [...extraSubIds];
+      subIdsArr.forEach(id => seen.add(id.toLowerCase()));
+      const startIdx = batchResults.children.length;
+      const subHeader = document.createElement("div");
+      subHeader.className = "sublevels-label";
+      subHeader.style.marginTop = "8px";
+      subHeader.textContent = "↳ " + subIdsArr.length + " additional linked sublevel(s) found";
+      batchOut.insertBefore(subHeader, document.getElementById("batchSummary"));
+      subIdsArr.forEach(id => batchResults.insertAdjacentHTML("beforeend", batchItemHtml(null, id, "pending")));
+      for (let i = 0; i < subIdsArr.length; i++) {
+        const idx = startIdx + i;
+        try {
+          const { info } = await fetchLevelInfo(subIdsArr[i]);
+          batchResults.children[idx].outerHTML = batchItemHtml(info, subIdsArr[i], "ok");
+          okCount++;
+        } catch (err) {
+          batchResults.children[idx].outerHTML = batchItemHtml(null, subIdsArr[i], "error");
+          errCount++;
+        }
+      }
+    }
+
+    document.getElementById("batchSummary").textContent =
+      okCount + " level(s) found" + (errCount ? ", " + errCount + " not found" : "") + ".";
+    batchBtn.disabled = false;
+  });
+})();
+</script>
+</body></html>
