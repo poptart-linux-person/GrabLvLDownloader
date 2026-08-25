@@ -156,8 +156,10 @@
 (function () {
   const LOOKUP_BASE = "https://vesper-584e74fe.base44.app/functions/grabDownloaderPage";
   const DOWNLOAD_BASE = "https://vesper-584e74fe.base44.app/functions/grabLevelDownloader";
-  // Matches the userId:timestamp shape used for GRAB level identifiers, e.g. 2frvcv7lg1y0m9lxbwd7f:1786234424
   const ID_RE = /\b[a-z0-9]{15,30}:\d{8,14}\b/gi;
+  // Caches blob: URLs for level files already fetched, so a binary scan and a
+  // later click on "Download" don't fetch the same file twice.
+  const blobCache = new Map();
 
   function extractId(raw) {
     raw = raw.trim();
@@ -214,11 +216,12 @@
       try {
         const bin = await fetchAndScanBinary(idOrRaw);
         bin.ids.forEach(id => { if (!info || id !== (info.id || "").toLowerCase()) allIds.add(id); });
-        if (info) info.downloadHref = bin.blobUrl;
-        else info = { id: idOrRaw, title: idOrRaw, author: "", meta: "", thumb: "", downloadHref: bin.blobUrl, sub: [] };
+        const cacheKey = (info && info.id) || idOrRaw;
+        blobCache.set(cacheKey, bin.blobUrl);
+        if (!info) info = { id: idOrRaw, title: idOrRaw, author: "", meta: "", thumb: "", downloadHref: null, sub: [] };
       } catch (e) {
         // Binary fetch failing shouldn't block showing the metadata result —
-        // just fall back to a direct download link.
+        // the download button will just fetch it lazily on click instead.
       }
     }
 
@@ -274,12 +277,13 @@
     };
   }
 
-  function renderResultCard(info, container) {
+  function renderResultCard(info, container, fallbackId) {
     if (!info) {
       container.innerHTML = '<div class="error-box">Couldn\'t find a level at that link.</div>';
       return;
     }
-    const dlHref = info.downloadHref || downloadUrl(info.id);
+    const dlId = info.id || fallbackId;
+    const filename = safeFilename(info.title) + ".level";
     container.innerHTML =
       '<div class="result-card"><div class="result-body">' +
         (info.thumb ? '<img class="result-thumb" src="' + escapeAttr(info.thumb) + '" alt="">' : '<div class="result-thumb"></div>') +
@@ -287,14 +291,15 @@
           '<h2 class="result-title">' + escapeHtml(info.title) + '</h2>' +
           '<p class="result-meta">' + escapeHtml([info.author && ("by " + info.author), info.meta].filter(Boolean).join(" · ")) + '</p>' +
         '</div>' +
-        '<a class="btn btn-purple" href="' + escapeAttr(dlHref) + '" download="' + escapeAttr(safeFilename(info.title)) + '.level">↓ Download .level</a>' +
+        '<button type="button" class="btn btn-purple" data-dl-id="' + escapeAttr(dlId) + '" data-dl-name="' + escapeAttr(filename) + '">↓ Download .level</button>' +
       '</div>' +
       (info.id ? '<div class="result-id">' + escapeHtml(info.id) + '</div>' : '') +
     '</div>';
   }
 
   function batchItemHtml(info, idOrRaw, state) {
-    const dlHref = info ? (info.downloadHref || downloadUrl(info.id || idOrRaw)) : null;
+    const dlId = (info && info.id) || idOrRaw;
+    const filename = info ? safeFilename(info.title) + ".level" : "level.level";
     return '<div class="batch-item">' +
       (info && info.thumb ? '<img class="bi-thumb" src="' + escapeAttr(info.thumb) + '" alt="">' : '<div class="bi-thumb"></div>') +
       '<div class="bi-info">' +
@@ -303,7 +308,7 @@
       '</div>' +
       (state === "pending" ? '<span class="bi-pending"><span class="spinner"></span></span>' :
        state === "error" ? '<span class="bi-error">not found</span>' :
-       '<a class="bi-dl-btn" href="' + escapeAttr(dlHref) + '" download="' + escapeAttr(safeFilename(info.title)) + '.level">↓ .level</a>') +
+       '<button type="button" class="bi-dl-btn" data-dl-id="' + escapeAttr(dlId) + '" data-dl-name="' + escapeAttr(filename) + '">↓ .level</button>') +
     '</div>';
   }
 
@@ -312,6 +317,45 @@
   }
   function escapeHtml(s) { return (s || "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function escapeAttr(s) { return escapeHtml(s); }
+
+  // Every download button is a <button data-dl-id data-dl-name>, not a link
+  // to the remote endpoint directly. Browsers only honor the `download`
+  // filename/extension for same-origin (or blob:) URLs — since this page is
+  // usually hosted on a different origin than the API, a direct cross-origin
+  // link gets its extension silently overridden by the server's declared
+  // content type instead (which is how a .level file was turning into .txt).
+  // Fetching into a blob: URL first sidesteps that.
+  document.addEventListener("click", async function (e) {
+    const btn = e.target.closest("[data-dl-id]");
+    if (!btn) return;
+    e.preventDefault();
+    const id = btn.getAttribute("data-dl-id");
+    const filename = btn.getAttribute("data-dl-name") || "level.level";
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Preparing…";
+    try {
+      let url = blobCache.get(id);
+      if (!url) {
+        const res = await fetch(downloadUrl(id), { credentials: "same-origin" });
+        if (!res.ok) throw new Error("Download failed (" + res.status + ")");
+        const buf = await res.arrayBuffer();
+        url = URL.createObjectURL(new Blob([buf], { type: "application/octet-stream" }));
+        blobCache.set(id, url);
+      }
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      btn.textContent = originalLabel;
+      btn.disabled = false;
+    } catch (err) {
+      btn.textContent = "Failed — retry";
+      btn.disabled = false;
+    }
+  });
 
   // ---- single lookup ----
   const singleForm = document.getElementById("singleForm");
@@ -337,7 +381,7 @@
     singleResult.innerHTML = '<div class="hint-box"><span class="spinner"></span> Looking up level…</div>';
     try {
       const { info, rawIds } = await fetchLevelInfo(id, { scanBinary: scanSublevels.checked });
-      renderResultCard(info, singleResult);
+      renderResultCard(info, singleResult, id);
 
       if (scanSublevels.checked) {
         const declaredSub = (info && info.sub) || [];
